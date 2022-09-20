@@ -1,28 +1,41 @@
 pipeline {
     agent any
 
+    environment {
+        ANSIBLE_CONFIG="${WORKSPACE}/deploy/ansible.cfg"
+    }
+
     stages {
-        stage('test') {
+        stage('initial cleanup') {
             steps {
-                script {
-                    sh 'echo "testing stage"'
+                dir("${WORKSPACE}") {
+                    deleteDir()
                 }
             }
         }
 
-        stage('build') {
+        stage('Git SCM') {
             steps {
-                script {
-                    sh 'echo "building stage"'
-                }
+                git branch: 'master', url: 'https://github.com/royalt1234/Jenkins-Sonarqube-Artifactory-Php.git'
             }
         }
 
-        stage('deploy') {
+        stage('prepare ansible for execution') {
             steps {
-                script {
-                    sh 'echo "deploying stage"'
-                }
+                sh 'echo ${WORKSPACE}'
+                sh 'sed -i "3 a roles_path=${WORKSPACE}/roles" "${WORKSPACE}/deploy/ansible.cfg"'
+            }
+        }
+
+        stage('run ansible playbook') {
+            steps {
+                ansiblePlaybook become: true, colorized: true, credentialsId: 'ssh-key', disableHostKeyChecking: true, installation: 'ansible', inventory: 'inventory/dev', playbook: 'playbook/site.yml'
+            }
+        }
+
+        stage('cleanup') {
+            steps {
+                cleanWs()
             }
         }
     }
