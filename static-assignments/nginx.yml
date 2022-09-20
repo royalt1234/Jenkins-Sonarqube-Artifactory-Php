@@ -1,0 +1,5 @@
+---
+- name: install nginx on redhat server
+  hosts: nginx
+  roles:
+    - nginx

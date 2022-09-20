@@ -1,4 +1,12 @@
 ---
-- hosts: db
+# - hosts: db
+# - name: install mysql on the db server
+#   ansible.builtin.import_playbook: ../static-assignments/db.yml
+
+- hosts: nginx
 - name: install mysql on the db server
-  ansible.builtin.import_playbook: ../static-assignments/db.yml
+  ansible.builtin.import_playbook: ../static-assignments/nginx.yml
+
+# - hosts: artifactory 
+# - name: install mysql on the db server
+#   ansible.builtin.import_playbook: ../static-assignments/db.yml
