@@ -5,7 +5,7 @@ pipepline {
         stage('test') {
             step {
                 script {
-                    sh `echo "testing stage"`
+                    sh 'echo "testing stage"'
                 }
             }
         }
@@ -13,7 +13,7 @@ pipepline {
         stage('build') {
             step {
                 script {
-                    sh `echo "building stage"`
+                    sh 'echo "building stage"'
                 }
             }
         }
@@ -21,7 +21,7 @@ pipepline {
         stage('deploy') {
             step {
                 script {
-                    sh `echo "deploying stage"`
+                    sh 'echo "deploying stage"'
                 }
             }
         }
