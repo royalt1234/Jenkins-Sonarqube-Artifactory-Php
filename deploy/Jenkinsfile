@@ -1,0 +1,23 @@
+pipepline {
+    agent any
+
+    stages {
+        stage('test') {
+            step {
+                sh `echo "testing stage"`
+            }
+        }
+
+        stage('build') {
+            step {
+                sh `echo "building stage"`
+            }
+        }
+
+        stage('deploy') {
+            step {
+                sh `echo "deploying stage"`
+            }
+        }
+    }
+}

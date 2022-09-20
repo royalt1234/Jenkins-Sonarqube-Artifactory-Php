@@ -1,0 +1,6 @@
+---
+- name: install db on redhat server
+  hosts: db
+  roles:
+    - mysql
+  
