@@ -3,7 +3,7 @@ pipeline {
 
     stages {
         stage('test') {
-            step {
+            steps {
                 script {
                     sh 'echo "testing stage"'
                 }
@@ -11,7 +11,7 @@ pipeline {
         }
 
         stage('build') {
-            step {
+            steps {
                 script {
                     sh 'echo "building stage"'
                 }
@@ -19,7 +19,7 @@ pipeline {
         }
 
         stage('deploy') {
-            step {
+            steps {
                 script {
                     sh 'echo "deploying stage"'
                 }
@@ -27,4 +27,3 @@ pipeline {
         }
     }
 }
-
