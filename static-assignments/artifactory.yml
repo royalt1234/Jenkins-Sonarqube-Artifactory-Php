@@ -1,0 +1,6 @@
+---
+- name: install artifactory on redhat server
+  hosts: artifactory
+  roles:
+    - artifactory
+  
