@@ -4,19 +4,25 @@ pipepline {
     stages {
         stage('test') {
             step {
-                sh `echo "testing stage"`
+                script {
+                    sh `echo "testing stage"`
+                }
             }
         }
 
         stage('build') {
             step {
-                sh `echo "building stage"`
+                script {
+                    sh `echo "building stage"`
+                }
             }
         }
 
         stage('deploy') {
             step {
-                sh `echo "deploying stage"`
+                script {
+                    sh `echo "deploying stage"`
+                }
             }
         }
     }
