@@ -33,7 +33,7 @@ pipeline {
 
         stage('run ansible playbook') {
             steps {
-                test
+                ansiblePlaybook become: true, colorized: true, credentialsId: 'ssh-key', disableHostKeyChecking: true, installation: 'ansible', inventory: 'inventory/${inventory}', playbook: 'playbooks/site.yml'
             }
         }
 
