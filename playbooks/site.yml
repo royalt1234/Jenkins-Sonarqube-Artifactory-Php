@@ -9,4 +9,4 @@
 
 - hosts: artifactory 
 - name: install mysql on the db server
-  ansible.builtin.import_playbook: ../static-assignments/artifactory.yml
+  import_playbook: ../static-assignments/artifactory.yml
