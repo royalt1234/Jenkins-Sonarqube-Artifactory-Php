@@ -1,5 +1,5 @@
 ---
-- name: install nginx on redhat server
-  hosts: nginx
+- name: install nginx on sonarqube server
+  hosts: sonarqube
   roles:
     - nginx
