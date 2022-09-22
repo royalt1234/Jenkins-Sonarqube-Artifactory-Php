@@ -51,6 +51,7 @@
       - zip
       - tree
       - elinks
+      - unzip
         
 # Updating all packages to their latest version
 
