@@ -14,7 +14,7 @@
  - hosts: java 
  - name: install java on the sonarqube server
    import_playbook: ../static-assignments/java.yml
-   
- - hosts: sonarqube 
- - name: install mysql on the sonarqube server
-   import_playbook: ../static-assignments/sonarqube.yml
+
+#  - hosts: sonarqube 
+#  - name: install mysql on the sonarqube server
+#    import_playbook: ../static-assignments/sonarqube.yml
