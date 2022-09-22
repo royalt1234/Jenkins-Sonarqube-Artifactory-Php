@@ -1,18 +1,14 @@
 ---
 - name: Prepare
   hosts: all
-
-  roles:
-    - name: buluma.bootstrap
-
   tasks:
-    - name: "ensure apt cache is up to date"
-      ansible.builtin.apt:
+    - name: "Ensure apt cache is up to date"
+      apt:
         update_cache: yes
       when: ansible_distribution == 'Ubuntu'
 
-    - name: "install package dependencies"
-      ansible.builtin.package:
+    - name: "Install package dependencies"
+      package:
         name: "{{ item }}"
         state: "present"
       with_items:

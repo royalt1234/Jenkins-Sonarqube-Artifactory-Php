@@ -1,6 +1,6 @@
 ---
-- name: "ensure required packages are installed"
-  ansible.builtin.package:
+- name: "Ensure required packages are installed"
+  package:
     name: "{{ item }}"
     state: "present"
   with_items:
