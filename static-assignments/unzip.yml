@@ -1,0 +1,6 @@
+---
+- name: install unzip on redhat server
+  hosts: sonarqube
+  roles:
+    - unzip
+  
