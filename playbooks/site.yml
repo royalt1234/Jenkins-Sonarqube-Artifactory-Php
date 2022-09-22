@@ -3,9 +3,9 @@
 # - name: install mysql on the db server
 #   ansible.builtin.import_playbook: ../static-assignments/db.yml
 
-- hosts: sonarqube
-- name: install nginx on the sonarqube server
-  import_playbook: ../static-assignments/nginx.yml
+# - hosts: sonarqube
+# - name: install nginx on the sonarqube server
+#   import_playbook: ../static-assignments/nginx.yml
 
 # - hosts: artifactory 
 # - name: install mysql on the db server
@@ -15,6 +15,6 @@
 #  - name: install java on the sonarqube server
 #    import_playbook: ../static-assignments/java.yml
 
-#  - hosts: sonarqube 
-#  - name: install mysql on the sonarqube server
-#    import_playbook: ../static-assignments/sonarqube.yml
+ - hosts: sonarqube 
+ - name: install mysql on the sonarqube server
+   import_playbook: ../static-assignments/sonarqube.yml
