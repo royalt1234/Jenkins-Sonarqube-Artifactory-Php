@@ -1,25 +1,27 @@
+---
 galaxy_info:
-  author: lrk
   role_name: sonarqube
-  description: "An Ansible Role that install SonarQube."
-  license: "Apache License Version 2.0"
-
-  min_ansible_version: 2.4
-
+  author: Lean Delivery Team <team@lean-delivery.com>
+  description: Lean Delivery SonarQube server install
+  company: EPAM Systems
+  issue_tracker_url: https://github.com/lean-delivery/ansible-role-sonarqube/issues
+  license: Apache
+  min_ansible_version: 2.9
   platforms:
-    - name: EL
+    - name: 'Ubuntu'
       versions:
-        - 7
-    - name: Ubuntu
+        - 'bionic'
+    - name: 'EL'
       versions:
-        - Bionic
-        - Xenial
-    - name: Debian
-      versions:
-        - Stretch
+        - '7'
+        - '8'
 
   galaxy_tags:
-    - 'centos'
-    - 'development'
-    - 'monitoring'
-    - 'sonarqube'
+    - sonarqube
+    - sonar
+    - codequality
+    - development
+    - monitoring
+    - scanner
+
+dependencies: []

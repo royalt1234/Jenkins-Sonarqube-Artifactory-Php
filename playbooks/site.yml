@@ -15,10 +15,6 @@
 #  - name: install java on the sonarqube server
 #    import_playbook: ../static-assignments/java.yml
 
- - hosts: unzip 
- - name: install unzip on the sonarqube server
-   import_playbook: ../static-assignments/unzip.yml
-
-#  - hosts: sonarqube 
-#  - name: install mysql on the sonarqube server
-#    import_playbook: ../static-assignments/sonarqube.yml
+ - hosts: sonarqube 
+ - name: install mysql on the sonarqube server
+   import_playbook: ../static-assignments/sonarqube.yml

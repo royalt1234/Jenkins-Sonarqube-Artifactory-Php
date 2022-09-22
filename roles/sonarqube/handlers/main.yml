@@ -1,16 +1,42 @@
 ---
-# handlers file for ansible-role-sonarqube/
-- name: "restart SonarQube service"
-  service:
-    name: sonar
-    state: restarted
+# handlers file for sonarqube
+  - name: Restart Sonarqube
+    systemd:
+      name: sonarqube
+      state: restarted
+      daemon_reload: true
+      enabled: true
+    notify:
+      - Wait for migrate DB
+      - Migrate DB
+      - Wait for Sonarqube
+    become: true
 
-- name: "fail if expected sonar version not confirmed"
-  fail:
-    msg: Please check if 'Version' field of http://{{ inventory_hostname }}{{ sonar_web_context }} match to {{ sonar_version }}
+  - name: Wait for migrate DB
+    uri:
+      url: '{{ sonar_check_url }}/api/system/status'
+      return_content: true
+      validate_certs: false
+    register: uri_result
+    until: "'DB_MIGRATION_NEEDED' in uri_result.content"
+    retries: 40
+    delay: 3
+    when: sonar_migrate_db | bool
 
-- name: "warn about post-upgrade steps"
-  debug:
-    msg:
-      - "SonarQube version changed to {{ sonar_version }} but additional actions required from your side"
-      - "Visit http://{{ inventory_hostname }}{{ sonar_web_context }}/setup to follow the post-upgrade procedure"
+  - name: Migrate DB
+    uri:
+      url: '{{ sonar_check_url }}/api/system/migrate_db'
+      method: POST
+      validate_certs: false
+      return_content: true
+    when: sonar_migrate_db | bool
+
+  - name: Wait for Sonarqube
+    uri:
+      url: '{{ sonar_check_url }}/api/system/status'
+      return_content: true
+      validate_certs: false
+    register: uri_result
+    until: "'UP' in uri_result.content"
+    retries: 40
+    delay: 3

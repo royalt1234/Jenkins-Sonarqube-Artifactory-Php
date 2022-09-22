@@ -1,0 +1,278 @@
+---
+# tasks file for sonarqube pre install
+
+- name: Become section
+  block:
+
+  - name: Tune virtual memory
+    sysctl:
+      name: vm.max_map_count
+      value: '{{ sonar_max_map_count | int }}'
+      state: present
+
+  - name: Create sonar group
+    group:
+      name: '{{ sonar_group }}'
+      state: present
+
+  - name: Create sonar user
+    user:
+      name: '{{ sonar_user }}'
+      shell: /sbin/nologin
+      group: '{{ sonar_group }}'
+      state: present
+      home: '/home/{{ sonar_user }}'
+      createhome: true
+
+  - name: Mkdir for SonarQube installation
+    file:
+      path: '{{ sonar_path }}'
+      state: directory
+      mode: 0755
+      owner: '{{ sonar_user }}'
+      group: '{{ sonar_group }}'
+
+  - name: Install requirements
+    package:
+      name:
+        - unzip
+        - curl
+      state: present
+    register: install_result
+    until: install_result is succeeded
+    retries: 3
+    delay: 5
+    notify: Restart Sonarqube
+
+  - name: 'Download SonarQube {{ sonar_version }} checksum'
+    uri:
+      url: '{{ sonar_store }}/sonarqube-{{ sonar_version }}.zip.sha'
+      return_content: true
+    register: sonarqube_checksum
+    when:
+      - sonar_version is version("8.3", "<")
+      - sonar_version is not version("7.9.4", "==")
+      - sonar_version is not version("7.9.5", "==")
+      - sonar_version is not version("7.9.6", "==")
+
+  - name: 'Download SonarQube {{ sonar_version }} with check'
+    get_url:
+      url: '{{ sonar_store }}/sonarqube-{{ sonar_version }}.zip'
+      dest: '{{ sonar_download_path }}/'
+      mode: 0644
+      owner: '{{ sonar_user }}'
+      group: '{{ sonar_group }}'
+      checksum: 'sha1:{{ sonarqube_checksum.content|trim }}'
+    register: download_distrib_result
+    until: download_distrib_result is succeeded
+    retries: 3
+    delay: 5
+    when:
+      - sonar_version is version("8.3", "<")
+      - sonar_version is not version("7.9.4", "==")
+      - sonar_version is not version("7.9.5", "==")
+      - sonar_version is not version("7.9.6", "==")
+      - sonar_download
+
+  - name: 'Download SonarQube {{ sonar_version }} without check'
+    get_url:
+      url: '{{ sonar_store }}/sonarqube-{{ sonar_version }}.zip'
+      dest: '{{ sonar_download_path }}/'
+      mode: 0644
+      owner: '{{ sonar_user }}'
+      group: '{{ sonar_group }}'
+    register: download_distrib_result
+    until: download_distrib_result is succeeded
+    retries: 3
+    delay: 5
+    when:
+      - sonar_version is version("8.3", ">=") or
+        sonar_version is version("7.9.4", "==") or
+        sonar_version is version("7.9.5", "==") or
+        sonar_version is version("7.9.6", "==")
+      - sonar_download
+
+  - name: 'Install SonarQube {{ sonar_version }}'
+    unarchive:
+      src: '{{ sonar_download_path }}/sonarqube-{{ sonar_version }}.zip'
+      exclude: "{{ sonar_all_excluded_plugins }} + \
+      [ 'sonarqube-{{ sonar_version }}/conf/sonar.properties', \
+      'sonarqube-{{ sonar_version }}/temp/README.txt']"
+      dest: '{{ sonar_path }}'
+      owner: '{{ sonar_user }}'
+      group: '{{ sonar_group }}'
+      remote_src: true
+      creates: '{{ sonar_installation }}/conf/wrapper.conf'
+    notify: Restart Sonarqube
+
+  - name: Render sonar.properties
+    template:
+      src: sonar.properties.j2
+      dest: '{{ sonar_installation }}/conf/sonar.properties'
+      mode: 0400
+      owner: '{{ sonar_user }}'
+    notify: Restart Sonarqube
+
+  - name: Render sonarqube.service
+    template:
+      src: sonarqube.service.j2
+      dest: /etc/systemd/system/sonarqube.service
+      mode: 0444
+      owner: '{{ sonar_user }}'
+    notify: Restart Sonarqube
+
+  - name: Render nginx config
+    template:
+      src: nginx.sonar.conf.j2
+      dest: '{{ nginx_config_path }}'
+      mode: 0444
+      owner: '{{ sonar_user }}'
+    when:
+      - sonar_proxy_type == 'nginx'
+    notify: Restart Sonarqube
+
+  - name: Download plugins
+    get_url:
+      url: '{{ item }}'
+      dest: '{{ sonar_plugins_dir }}'
+      mode: 0644
+      owner: '{{ sonar_user }}'
+      group: '{{ sonar_group }}'
+    when: '"0.0.0" not in item'
+    register: download_plugin_result
+    until: download_plugin_result is succeeded
+    retries: 3
+    delay: 5
+    notify: Restart Sonarqube
+    loop: '{{ sonar_all_plugins }}'
+
+  - name: Copy branch plugin
+    copy:
+      src: '{{ sonar_plugins_dir }}/sonarqube-community-branch-plugin-{{ branch_pversion }}.jar'
+      dest: '{{ sonar_installation }}/lib/common/'
+      mode: 0644
+      remote_src: true
+    when:
+      - branch_plugin_url in sonar_all_plugins
+      - branch_pversion is version("1.2.0", ">=")
+      - branch_pversion is version("1.7.0", "<=")
+
+  - meta: flush_handlers
+
+  rescue:
+    - name: Show logs
+      command: 'ls {{ sonar_installation }}/logs/'
+      register: logs_list
+
+    - debug:
+        var: logs_list.stdout
+
+    - name: Get sonar log
+      command: 'cat {{ sonar_log_path }}'
+      register: sonar_log
+
+    - debug:
+        var: sonar_log.stdout
+
+    - name: Get web log
+      command: 'cat {{ sonar_installation }}/logs/web.log'
+      register: web_log
+
+    - debug:
+        var: web_log.stdout
+
+  become: true
+
+- name: Verify login with old password
+  uri:
+    url: '{{ sonar_check_url }}/api/authentication/login'
+    method: POST
+    force_basic_auth: true
+    user: '{{ sonar_web_user }}'
+    password: '{{ sonar_web_old_password }}'
+    body: 'login={{ sonar_web_user }}&password={{ sonar_web_old_password }}'
+    body_format: form-urlencoded
+    validate_certs: false
+    status_code:
+      - 200
+      - 401
+  register: login_result
+  when:
+    - change_password | bool
+
+- name: Update sonar web password
+  uri:
+    url: '{{ sonar_check_url }}/api/users/change_password'
+    method: POST
+    force_basic_auth: true
+    user: '{{ sonar_web_user }}'
+    password: '{{ sonar_web_old_password }}'
+    body: 'login={{ sonar_web_user }}&password={{ sonar_web_password }}&previousPassword={{ sonar_web_old_password }}'
+    body_format: form-urlencoded
+    validate_certs: false
+    status_code: 204
+  when:
+    - change_password | bool
+    - login_result.status == 200
+
+- name: Jenkins webhook block
+  include_tasks: jenkins.yml
+  when:
+    - sonar_set_jenkins_webhook | bool
+
+- name: Get initial list of profiles
+  find:
+    paths: '{{ sonar_path }}/profiles/'
+  register: sonar_profile_list_initial
+  become: true
+
+- name: Set list of profile filenames
+  set_fact:
+    sonar_profile_names_list_initial: >-
+      {{ sonar_profile_list_initial.files | map(attribute='path') | map('basename') | list }}
+    sonar_profile_names_list: >-
+      {{ sonar_profile_list | map('basename') | list }}
+
+- name: Restore profiles block
+  block:
+    - name: Copy profiles to profiles directory
+      copy:
+        src: '{{ profile_item }}'
+        dest: '{{ sonar_path }}/profiles/'
+        mode: 0644
+        owner: '{{ sonar_user }}'
+        group: '{{ sonar_group }}'
+      loop: '{{ sonar_profile_list }}'
+      loop_control:
+        loop_var: profile_item
+      become: true
+
+    - name: Cleanup profiles directory
+      file:
+        path: '{{ profile_item.path }}'
+        state: absent
+      loop: '{{ sonar_profile_list_initial.files }}'
+      loop_control:
+        loop_var: profile_item
+      when: (profile_item.path | basename) not in sonar_profile_names_list
+      become: true
+
+    - name: Get list of profiles
+      find:
+        paths: '{{ sonar_path }}/profiles/'
+      register: sonar_profile_list_result
+      become: true
+
+    - name: Restore profiles
+      # have to use curl because of https://github.com/ansible/ansible/issues/38172
+      command: >-
+        {{ curl_command }} -k -u {{ sonar_web_user }}:{{ sonar_web_password }} -F
+          'backup=@{{ profile_item.path }}' {{ sonar_check_url }}/api/qualityprofiles/restore
+      args:
+        warn: false
+      loop: '{{ sonar_profile_list_result.files }}'
+      loop_control:
+        loop_var: profile_item
+  when:
+    - sonar_restore_profiles | bool
+    - sonar_profile_names_list | difference(sonar_profile_names_list_initial) | length

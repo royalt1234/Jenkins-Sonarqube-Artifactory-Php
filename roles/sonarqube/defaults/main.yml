@@ -1,295 +1,459 @@
 ---
-# defaults file for ansible-role-sonarqube/
+# defaults file for sonarqube
+sonar_version: 8.9.4.50575
 
-# SonarQube Install directory
-sonar_install_directory: /opt/sonarqube
-
-# SonarQube base directory
-sonar_base_dir: "{{ sonar_install_directory }}/sonarqube-{{ sonar_version }}"
-
-# SonarQube daemon directory
-sonar_daemon_dir: "{{ sonar_base_dir }}/bin/linux-x86-{{ ansible_userspace_bits }}"
-
-# SonarQube conf directory
-sonar_conf_dir: "{{ sonar_base_dir }}/conf"
-
-sonar_logs_dir: "/var/log/sonarqube"
-
-# Paths to persistent data files (embedded database and search index)
-sonar_data_dir: "{{ sonar_base_dir }}/data"
-
-# Paths to temporary files
-sonar_temp_dir: "{{ sonar_base_dir }}/temp"
-
-# SonarQube version to install
-sonar_version: 7.3
-
-# SonarQube system group
+sonar_path: /opt/sonarqube
+sonar_user: sonar
 sonar_group: sonar
 
-# SonarQube system user
-sonar_user: sonar
+# tuning
+sonar_nofile: 65536
+sonar_nproc: 4096
+sonar_max_map_count: 262144
+sonar_log_level: INFO
+sonar_java_opts:
+  web: -Xmx512m -Xms128m
+  es: -Xms512m -Xmx512m
+  ce: -Xmx512m -Xms128m
 
-# SonarQube service LimitNOFILE parameter
-sonar_limitnofile: 65536
+# sonarqube web interface, should be covered by reverse proxy
+web:
+  host: 0.0.0.0
+  port: 9000
+  path: /
 
-# SonarQube plugins to install
-sonar_plugins: []
-# - { name: "plugin name", version: "1.0", commercial: false, url: 'optional'}
+# database connection
+sonar_db:
+  type: postgresql
+  port: 5432
+  host: localhost
+  name: sonar
+  user: sonar
+  password: sonar
+  options:
 
-# Use the embedded H2 database, not for production environmnet
-sonar_db_embedded: true
-sonar_db_embedded_port: 9092
+# Since 7.1 mysql deprecated
+#  type: mysql
+#  port: 3306
+#  host: localhost
+#  name: sonar
+#  user: sonar
+#  password: sonar
+#  options: "?useUnicode=true&\
+#            characterEncoding=utf8&\
+#            rewriteBatchedStatements=true&\
+#            useConfigs=maxPerformance&\
+#            useSSL=false"
 
-# SonarQube JDBC Credentials
-sonar_db_user: ""
-sonar_db_pass: ""
+# sonarqube artifact provider
+sonar_store: https://binaries.sonarsource.com/Distribution/sonarqube
 
-# SonarQube JDBC URL
-# examples (from default sonar.properties file):
-#----- MySQL 5.6 or greater
-# Only InnoDB storage engine is supported (not myISAM).
-# Only the bundled driver is supported. It can not be changed.
-#sonar_jdbc_url=jdbc:mysql://localhost:3306/sonar?useUnicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useConfigs=maxPerformance
-#----- Oracle 11g/12c
-# - Only thin client is supported
-# - Only versions 11.2.x and 12.x of Oracle JDBC driver are supported
-# - The JDBC driver must be copied into the directory extensions/jdbc-driver/oracle/
-# - If you need to set the schema, please refer to http://jira.sonarsource.com/browse/SONAR-5000
-#sonar_jdbc_url=jdbc:oracle:thin:@localhost:1521/XE
-#----- PostgreSQL 8.x/9.x
-# If you don't use the schema named "public", please refer to http://jira.sonarsource.com/browse/SONAR-5000
-#sonar_jdbc_url=jdbc:postgresql://localhost/sonar
+# need to use http for self-signed certificates
+sonar_check_url: http://{{ web.host }}:{{ web.port }}
+sonar_installation: '{{ sonar_path }}/sonarqube-{{ sonar_version }}'
 
-#----- Microsoft SQLServer 2008/2012/2014 and SQL Azure
-# A database named sonar must exist and its collation must be case-sensitive (CS) and accent-sensitive (AS)
-# Use the following connection string if you want to use integrated security with Microsoft Sql Server
-# Do not set sonar.jdbc.username or sonar.jdbc.password property if you are using Integrated Security
-# For Integrated Security to work, you have to download the Microsoft SQL JDBC driver package from
-# http://www.microsoft.com/en-us/download/details.aspx?displaylang=en&id=11774
-# and copy sqljdbc_auth.dll to your path. You have to copy the 32 bit or 64 bit version of the dll
-# depending upon the architecture of your server machine.
-# This version of SonarQube has been tested with Microsoft SQL JDBC version 4.1
-#sonar_jdbc_url=jdbc:sqlserver://localhost;databaseName=sonar;integratedSecurity=true
-# Use the following connection string if you want to use SQL Auth while connecting to MS Sql Server.
-# Set the sonar.jdbc.username and sonar.jdbc.password appropriately.
-#sonar_jdbc_url=jdbc:sqlserver://localhost;databaseName=sonar
+# local download path
+sonar_download: true
+sonar_download_path: /tmp
 
-sonar_jdbc_url: ""
+sonar_proxy_type: nginx
+sonar_proxy_server_name: '{{ ansible_fqdn }}'
+sonar_proxy_http: false
+sonar_proxy_http_port: 80
+sonar_proxy_ssl: true
+sonar_proxy_ssl_port: 443
+sonar_proxy_ssl_cert_path: '/etc/ssl/{{ sonar_proxy_server_name }}/{{ sonar_proxy_server_name }}.pem'
+sonar_proxy_ssl_key_path: '/etc/ssl/{{ sonar_proxy_server_name }}/{{ sonar_proxy_server_name }}.key'
+sonar_proxy_client_max_body_size: 32m
 
-# SonarQube JDBC maximum number of active connection
-sonar_jdbc_maxactive: 60
+nginx_config_path: /etc/nginx/conf.d/sonar.conf
 
-# The maximum number of connections that can remain idle in the
-# pool, without extra ones being released, or negative for no limit.
-sonar_jdbc_maxidle: 5
+# Plugin versions
+checkstyle_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}8.40\
+                      {% else %}4.27\
+                      {% endif %}"
 
-# The minimum number of connections that can remain idle in the pool,
-# without extra ones being created, or zero to create none.
-sonar_jdbc_minidle: 2
+pmd_pversion: "{% if sonar_version is version(\"7.0\", \">=\") %}3.3.1\
+               {% else %}2.6\
+               {% endif %}"
 
+# https://github.com/spotbugs/sonar-findbugs/issues/345
+findbugs_pversion: "{% if sonar_version is version(\"7.6\", \">=\") %}4.0.3\
+                    {% else %}0.0.0\
+                    {% endif %}"
 
-# The maximum number of milliseconds that the pool will wait (when there
-# are no available connections) for a connection to be returned before
-# throwing an exception, or <= 0 to wait indefinitely.
-sonar_jdbc_maxwait: 5000
+jdepend_pversion: 1.1.1
 
-sonar_jdbc_min_evictable_idle_time_millis: 600000
-sonar_jdbc_time_between_eviction_runs_millis: 30000
+jproperties_pversion: 2.6
 
+groovy_pversion: 1.7
 
-# SonarQube Web Server configuration
-# sonar_web_java_opts: "-Xmx512m -Xms128m -XX:+HeapDumpOnOutOfMemoryError -Djava.net.preferIPv4Stack=true"
-sonar_web_java_opts: ""
+dependency_check_pversion: "{% if sonar_version is version(\"7.6\", \">=\") %}2.0.8\
+                            {% elif sonar_version is version(\"7.3\", \">=\") %}1.2.1\
+                            {% else %}1.1.6\
+                            {% endif %}"
 
-# Same as previous property, but allows to not repeat all other settings like -Xmx
-sonar_web_java_additional_opts: ""
+json_pversion: 2.3
 
-# Binding IP address. For servers with more than one IP address, this property specifies which
-# address will be used for listening on the specified ports.
-# By default, ports will be used on all IP addresses associated with the server.
-sonar_web_host: 0.0.0.0
+yaml_pversion: 1.5.2
 
-# Web context. When set, it must start with forward slash (for example /sonarqube).
-# The default value is root context (empty value).
-sonar_web_context: ""
+ansible_pversion: 2.4.0
 
-# TCP port for incoming HTTP connections. Default value is 9000.
-sonar_web_port: 9000
+shellcheck_pversion: "{% if sonar_version is version(\"7.4\", \">=\") %}2.4.0\
+                      {% else %}2.2.1\
+                      {% endif %}"
 
-# The maximum number of connections that the server will accept and process at any given time.
-# When this number has been reached, the server will not accept any more connections until
-# the number of connections falls below this value. The operating system may still accept connections
-# based on the sonar.web.connections.acceptCount property. The default value is 50.
-sonar_web_http_max_threads: 50
+java_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}7.1.0.26670\
+                {% elif sonar_version is version(\"7.0\", \">=\") %}5.14.0.18788\
+                {% else %}0.0.0\
+                {% endif %}"
 
-# The minimum number of threads always kept running. The default value is 5.
-sonar_web_http_min_threads: 5
+javascript_pversion: "{% if sonar_version is version(\"8.0\", \">=\") %}8.1.0.15788\
+                      {% elif sonar_version is version(\"7.9\", \">=\") %}6.7.0.14237\
+                      {% elif sonar_version is version(\"7.0\", \">=\") %}5.2.1.7778\
+                      {% else %}0.0.0\
+                      {% endif %}"
 
-# The maximum queue length for incoming connection requests when all possible request processing
-# threads are in use. Any requests received when the queue is full will be refused.
-# The default value is 25.
-sonar_web_http_accept_count: 25
+typescript_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}2.1.0.4359\
+                      {% elif sonar_version is version(\"7.0\", \">=\") %}1.9.0.3766\
+                      {% else %}0.0.0\
+                      {% endif %}"
 
-# TCP port for incoming AJP connections. Disabled if value is -1. Disabled by default.
-sonar_ajp_port: -1
+git_pversion: "{% if sonar_version is version(\"8.5.0.37579\", \">=\") %}0.0.0\
+               {% elif sonar_version is version(\"7.0\", \">=\") %}1.12.1.2064\
+               {% else %}0.0.0\
+               {% endif %}"
 
-#--------------------------------------------------------------------------------------------------
-# COMPUTE ENGINE
-# The Compute Engine is responsible for processing background tasks.
-# Compute Engine is executed in a dedicated Java process. Default heap size is 512Mb.
-# Use the following property to customize JVM options.
-#    Recommendations:
-#
-#    The HotSpot Server VM is recommended. The property -server should be added if server mode
-#    is not enabled by default on your environment:
-#    http://docs.oracle.com/javase/8/docs/technotes/guides/vm/server-class.html
-#
-# sonar_ce_java_opts: "-Xmx512m -Xms128m -XX:+HeapDumpOnOutOfMemoryError -Djava.net.preferIPv4Stack=true"
-sonar_ce_java_opts: ""
+xml_pversion: "{% if sonar_version is version(\"7.0\", \">=\") %}2.2.0.2973\
+               {% else %}0.0.0\
+               {% endif %}"
 
-# Same as previous property, but allows to not repeat all other settings like -Xmx
-sonar_ce_java_additional_opts: ""
+python_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}3.5.0.8244\
+                  {% elif sonar_version is version(\"7.0\", \">=\") %}1.14.1.3143\
+                  {% else %}0.0.0\
+                  {% endif %}"
 
-# The number of workers in the Compute Engine. Value must be greater than zero.
-# By default the Compute Engine uses a single worker and therefore processes tasks one at a time.
-#    Recommendations:
-#
-#    Using N workers will require N times as much Heap memory (see property
-#    sonar.ce.javaOpts to tune heap) and produce N times as much IOs on disk, database and
-#    Elasticsearch. The number of workers must suit your environment.
-sonar_ce_worker_count: 1
+kotlin_pversion: "{% if sonar_version is version(\"7.3\", \">=\") %}1.8.3.2219\
+                  {% else %}0.0.0\
+                  {% endif %}"
 
-#--------------------------------------------------------------------------------------------------
-# ELASTICSEARCH
-# Elasticsearch is used to facilitate fast and accurate information retrieval.
-# It is executed in a dedicated Java process. Default heap size is 1Gb.
+css_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}1.4.2.2002\
+               {% else %}1.1.1.1010\
+               {% endif %}"
 
-# JVM options of Elasticsearch process
-#    Recommendations:
-#
-#    Use HotSpot Server VM. The property -server should be added if server mode
-#    is not enabled by default on your environment:
-#    http://docs.oracle.com/javase/8/docs/technotes/guides/vm/server-class.html
-#
-# sonar_search_java_opts: "-Xmx1G -Xms1G -Xss256k -Djava.net.preferIPv4Stack=true -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -XX:+HeapDumpOnOutOfMemoryError"
-sonar_search_java_opts: ""
+html_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}3.4.0.2754\
+                {% else %}3.2.0.2082\
+                {% endif %}"
 
-# Same as previous property, but allows to not repeat all other settings like -Xmx
-sonar_search_java_additional_opts: ""
+php_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}3.17.0.7439\
+               {% elif sonar_version is version(\"7.8\", \">=\") %}3.1.1.4762\
+               {% elif sonar_version is version(\"7.0\", \">=\") %}3.0.0.4537\
+               {% else %}0.0.0\
+               {% endif %}"
 
-# Elasticsearch port. Default is 9001. Use 0 to get a free port.
-# As a security precaution, should be blocked by a firewall and not exposed to the Internet.
-sonar_search_port: 9001
+jacoco_pversion: 1.1.1.1157
 
-# Elasticsearch host. The search server will bind this address and the search client will connect to it.
-# Default is 127.0.0.1.
-# As a security precaution, should NOT be set to a publicly available address.
-sonar_search_host: 127.0.0.1
+smell_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}4.0.0\
+                 {% else %}0.0.0\
+                 {% endif %}"
 
+badges_pversion: 3.0.1
 
-#--------------------------------------------------------------------------------------------------
-# UPDATE CENTER
+auth_github_pversion: "{% if sonar_version is version(\"8.0\", \">=\") %}0.0.0\
+                       {% else %}1.5.0.870\
+                       {% endif %}"
 
-# Update Center requires an internet connection to request https://update.sonarsource.org
-# It is enabled by default.
+auth_bitbucket_epversion: "{% if sonar_version is version(\"7.2\", \">=\") %}\
+  https://binaries.sonarsource.com/Distribution/sonar-auth-bitbucket-plugin/sonar-auth-bitbucket-plugin-1.1.0.381.jar\
+                          {% else %}\
+  https://github.com/SonarSource/sonar-auth-bitbucket/releases/download/1.0/sonar-auth-bitbucket-plugin-1.0.jar\
+                          {% endif %}"
+
+bitbucket_pversion: 1.3.0
+
+stash_pversion: 1.6.0
+
+auth_gitlab_pversion: "{% if sonar_version is version(\"8.0\", \">=\") %}0.0.0\
+                       {% else %}1.3.2\
+                       {% endif %}"
+
+gitlab_pversion: "{% if sonar_version is version(\"7.0\", \">=\") %}4.1.0-SNAPSHOT\
+                  {% else %}3.0.2\
+                  {% endif %}"
+
+xanitizer_pversion: "{% if sonar_version is version(\"7.9\", \">=\") %}2.2.0\
+                     {% elif sonar_version is version(\"7.3\", \">=\") %}2.0.0\
+                     {% else %}1.5.0\
+                     {% endif %}"
+
+build_breaker_epversion: "{% if sonar_version is version(\"7.3\", \">=\") %}2.3.1/sonar-build-breaker-plugin-2.3.1.347.jar\
+                         {% else %}2.2/sonar-build-breaker-plugin-2.2.jar\
+                         {% endif %}"
+
+issueresolver_pversion: 1.0.2
+
+branch_pversion: "{% if sonar_version is version(\"8.9.0.43852\", \">=\") %}1.8.1\
+                  {% elif sonar_version is version(\"8.7.0.41497\", \">=\") %}1.7.0\
+                  {% elif sonar_version is version(\"8.5.0.37579\", \">=\") %}1.6.0\
+                  {% elif sonar_version is version(\"8.2.0.32929\", \">=\") %}1.5.0\
+                  {% elif sonar_version is version(\"8.1.0.31237\", \">=\") %}1.4.0\
+                  {% elif sonar_version is version(\"7.8\", \">=\") %}1.3.2\
+                  {% elif sonar_version is version(\"7.4\", \">=\") %}1.3.2\
+                  {% else %}0.0.0\
+                  {% endif %}"
+
+sonar_install_recommended_plugins: true
+sonar_recommended_plugins:
+  - 'https://github.com/checkstyle/sonar-checkstyle/releases/download/{{ checkstyle_pversion }}/checkstyle-sonar-plugin-{{ checkstyle_pversion }}.jar'
+
+  - 'https://github.com/SonarQubeCommunity/sonar-pmd/releases/download/{{ pmd_pversion }}/sonar-pmd-plugin-{{ pmd_pversion }}.jar'
+
+  - 'https://github.com/spotbugs/sonar-findbugs/releases/download/{{ findbugs_pversion }}/sonar-findbugs-plugin-{{ findbugs_pversion }}.jar'
+
+  - "https://github.com/willemsrb/sonar-jdepend-plugin/releases/download/\
+    sonar-jdepend-plugin-{{ jdepend_pversion }}/sonar-jdepend-plugin-{{ jdepend_pversion }}.jar"
+
+  - "https://github.com/racodond/sonar-jproperties-plugin/releases/download/\
+    {{ jproperties_pversion }}/sonar-jproperties-plugin-{{ jproperties_pversion }}.jar"
+
+  - 'https://github.com/Inform-Software/sonar-groovy/releases/download/{{ groovy_pversion }}/sonar-groovy-plugin-{{ groovy_pversion }}.jar'
+
+  - "https://github.com/stevespringett/dependency-check-sonar-plugin/releases/download/{{ dependency_check_pversion }}/\
+    sonar-dependency-check-plugin-{{ dependency_check_pversion }}.jar"
+
+  - 'https://github.com/racodond/sonar-json-plugin/releases/download/{{ json_pversion }}/sonar-json-plugin-{{ json_pversion }}.jar'
+
+  - 'https://github.com/sbaudoin/sonar-yaml/releases/download/v{{ yaml_pversion }}/sonar-yaml-plugin-{{ yaml_pversion }}.jar'
+
+  - 'https://github.com/sbaudoin/sonar-ansible/releases/download/v{{ ansible_pversion }}/sonar-ansible-plugin-{{ ansible_pversion }}.jar'
+
+  - 'https://github.com/sbaudoin/sonar-ansible/releases/download/v{{ ansible_pversion }}/sonar-ansible-extras-plugin-{{ ansible_pversion }}.jar'
+
+  - 'https://github.com/sbaudoin/sonar-shellcheck/releases/download/v{{ shellcheck_pversion }}/sonar-shellcheck-plugin-{{ shellcheck_pversion }}.jar'
+
+sonar_update_default_plugins: true
+sonar_default_plugins:
+  - 'https://binaries.sonarsource.com/Distribution/sonar-java-plugin/sonar-java-plugin-{{ java_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-javascript-plugin/sonar-javascript-plugin-{{ javascript_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-typescript-plugin/sonar-typescript-plugin-{{ typescript_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-scm-git-plugin/sonar-scm-git-plugin-{{ git_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-xml-plugin/sonar-xml-plugin-{{ xml_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-python-plugin/sonar-python-plugin-{{ python_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-kotlin-plugin/sonar-kotlin-plugin-{{ kotlin_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-css-plugin/sonar-css-plugin-{{ css_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-html-plugin/sonar-html-plugin-{{ html_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-php-plugin/sonar-php-plugin-{{ php_pversion }}.jar'
+  - 'https://binaries.sonarsource.com/Distribution/sonar-jacoco-plugin/sonar-jacoco-plugin-{{ jacoco_pversion }}.jar'
+
+sonar_install_optional_plugins: false
+
+branch_plugin_url: "https://github.com/mc1arke/sonarqube-community-branch-plugin/releases/download/\
+                    {{ branch_pversion }}/sonarqube-community-branch-plugin-{{ branch_pversion }}.jar"
+sonar_optional_plugins:
+
+  - "https://github.com/QualInsight/qualinsight-plugins-sonarqube-smell/releases/download/\
+    qualinsight-plugins-sonarqube-smell-{{ smell_pversion }}/qualinsight-sonarqube-smell-plugin-{{ smell_pversion }}.jar"
+
+#   Plugin is not supported in SonarQube 7.3+
+#   https://github.com/QualInsight/qualinsight-plugins-sonarqube-badges/issues/82
+  - "https://github.com/QualInsight/qualinsight-plugins-sonarqube-badges/releases/download/\
+    qualinsight-plugins-sonarqube-badges-{{ badges_pversion }}/qualinsight-sonarqube-badges-{{ badges_pversion }}.jar"
+
+#   Plugin is not supported in SonarQube 8+
+  - 'https://binaries.sonarsource.com/Distribution/sonar-auth-github-plugin/sonar-auth-github-plugin-{{ auth_github_pversion }}.jar'
+
+  - '{{ auth_bitbucket_epversion }}'
+
+#   Plugin is not supported in SonarQube 7.7+
+  - 'https://github.com/Soyn/sonar-bitbucket-plugin/releases/download/v{{ bitbucket_pversion }}/sonar-bitbucket-plugin-{{ bitbucket_pversion }}.jar'
+
+#   Plugin is not supported in SonarQube 7.7+
+  - 'https://github.com/AmadeusITGroup/sonar-stash/releases/download/{{ stash_pversion }}/sonar-stash-plugin-{{ stash_pversion }}.jar'
+
+#   Plugin is not supported in SonarQube 8+
+  - "https://github.com/gabrie-allaigre/sonar-auth-gitlab-plugin/releases/download/\
+    {{ auth_gitlab_pversion }}/sonar-auth-gitlab-plugin-{{ auth_gitlab_pversion }}.jar"
+
+#   Plugin is not supported in SonarQube 7.6+
+  - 'https://github.com/gabrie-allaigre/sonar-gitlab-plugin/releases/download/{{ gitlab_pversion }}/sonar-gitlab-plugin-{{ gitlab_pversion }}.jar'
+
+  - 'https://github.com/RIGS-IT/sonar-xanitizer/releases/download/{{ xanitizer_pversion }}/sonar-xanitizer-plugin-{{ xanitizer_pversion }}.jar'
+
+  - 'https://github.com/adnovum/sonar-build-breaker/releases/download/{{ build_breaker_epversion }}'
+
+  - "https://github.com/willemsrb/sonar-issueresolver-plugin/releases/download/sonar-issueresolver-plugin-{{ issueresolver_pversion }}/\
+    sonar-issueresolver-plugin-{{ issueresolver_pversion }}.jar"
+
+  - '{{ branch_plugin_url }}'
+
+sonar_all_plugins: "{{ sonar_install_recommended_plugins | ternary(sonar_recommended_plugins, []) +\
+                       sonar_update_default_plugins | ternary(sonar_default_plugins, []) +\
+                       sonar_install_optional_plugins | ternary(sonar_optional_plugins, []) }}"
+
+sonar_plugins_path: "{% if sonar_version is version(\"8.5.0.37579\", \">=\") %}sonarqube-{{ sonar_version }}/lib/extensions\
+                     {% else %}sonarqube-{{ sonar_version }}/extensions/plugins\
+                     {% endif %}"
+
+sonar_plugins_dir: "{{ sonar_installation }}/extensions/plugins"
+
+# Exclude old plugins that go with SonarQube installations
+sonar_excluded_plugins:
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.4.0.14284.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.6.1.15064.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.8.0.15699.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.9.2.16552.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.10.1.16922.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.11.0.17289.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.13.0.18197.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.13.1.18282.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-5.14.0.18788.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.1.0.20866.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.3.0.21585.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.5.1.22586.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.8.0.23379.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.9.0.23563.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.12.0.24852.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.14.0.25463.jar'
+  - '{{ sonar_plugins_path }}/sonar-java-plugin-6.15.1.26025.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-4.1.0.6085.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-4.2.0.6476.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-5.0.0.6962.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-5.1.1.7506.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-5.2.1.7778.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-6.1.0.11503.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-6.2.0.12043.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-6.2.1.12157.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-6.5.0.13383.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-7.0.1.14561.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-7.2.0.14938.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-7.3.0.15071.jar'
+  - '{{ sonar_plugins_path }}/sonar-javascript-plugin-7.4.4.15624.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-typescript-plugin-1.7.0.2893.jar'
+  - '{{ sonar_plugins_path }}/sonar-typescript-plugin-1.8.0.3332.jar'
+  - '{{ sonar_plugins_path }}/sonar-typescript-plugin-1.9.0.3766.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-scm-git-plugin-1.4.1.1128.jar'
+  - '{{ sonar_plugins_path }}/sonar-scm-git-plugin-1.6.0.1349.jar'
+  - '{{ sonar_plugins_path }}/sonar-scm-git-plugin-1.7.0.1491.jar'
+  - '{{ sonar_plugins_path }}/sonar-scm-git-plugin-1.8.0.1574.jar'
+  - '{{ sonar_plugins_path }}/sonar-scm-git-plugin-1.9.1.1834.jar'
+  - '{{ sonar_plugins_path }}/sonar-scm-git-plugin-1.11.1.2008.jar'
+  - '{{ sonar_plugins_path }}/sonar-scm-git-plugin-1.12.0.2034.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-xml-plugin-1.5.1.1452.jar'
+  - '{{ sonar_plugins_path }}/sonar-xml-plugin-2.0.1.2020.jar'
+  - '{{ sonar_plugins_path }}/sonar-xml-plugin-2.1.0.2861.jar'
+  - '{{ sonar_plugins_path }}/sonar-xml-plugin-2.2.0.2973.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-1.10.0.2131.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-1.11.0.2473.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-1.13.0.2922.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-1.14.0.3086.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-1.14.1.3143.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-1.16.0.4432.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-2.3.0.5351.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-2.5.0.5733.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-2.8.0.6204.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-2.13.0.7236.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-3.1.0.7619.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-3.2.0.7856.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-3.4.0.7980.jar'
+  - '{{ sonar_plugins_path }}/sonar-python-plugin-3.4.1.8066.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-kotlin-plugin-1.0.1.965.jar'
+  - '{{ sonar_plugins_path }}/sonar-kotlin-plugin-1.2.1.2009.jar'
+  - '{{ sonar_plugins_path }}/sonar-kotlin-plugin-1.4.0.155.jar'
+  - '{{ sonar_plugins_path }}/sonar-kotlin-plugin-1.5.0.315.jar'
+  - '{{ sonar_plugins_path }}/sonar-kotlin-plugin-1.8.1.1804.jar'
+  - '{{ sonar_plugins_path }}/sonar-kotlin-plugin-1.8.2.1946.jar'
+  - '{{ sonar_plugins_path }}/sonar-kotlin-plugin-1.8.3.2219.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.0.1.508.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.0.2.611.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.0.3.724.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.1.0.993.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.1.1.1010.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.2.0.1325.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.3.0.1580.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.3.1.1642.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.3.2.1782.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.4.0.1899.jar'
+  - '{{ sonar_plugins_path }}/sonar-css-plugin-1.4.2.2002.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-2.13.0.3107.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-2.14.0.3569.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-2.15.0.4060.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-2.16.0.4355.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.0.0.4537.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.1.1.4762.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.2.0.4868.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.3.0.5166.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.5.0.5655.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.9.0.6331.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.13.0.6849.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.15.0.7197.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.16.0.7320.jar'
+  - '{{ sonar_plugins_path }}/sonar-php-plugin-3.17.0.7439.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-html-plugin-3.1.0.1615.jar'
+  - '{{ sonar_plugins_path }}/sonar-html-plugin-3.2.0.2082.jar'
+  - '{{ sonar_plugins_path }}/sonar-html-plugin-3.3.0.2534.jar'
+  - '{{ sonar_plugins_path }}/sonar-html-plugin-3.4.0.2754.jar'
+
+  - '{{ sonar_plugins_path }}/sonar-jacoco-plugin-1.0.1.143.jar'
+  - '{{ sonar_plugins_path }}/sonar-jacoco-plugin-1.0.2.475.jar'
+  - '{{ sonar_plugins_path }}/sonar-jacoco-plugin-1.1.0.898.jar'
+  - '{{ sonar_plugins_path }}/sonar-jacoco-plugin-1.1.1.1157.jar'
+
+# Override this var to exclude default plugins you don't need
+sonar_default_excluded_plugins: []
+
+sonar_all_excluded_plugins: "{{ sonar_update_default_plugins | ternary(sonar_excluded_plugins, []) +\
+                                sonar_default_excluded_plugins }}"
+
+# SonarQube configuration
+sonar_web_user: admin
+sonar_web_password: admin
+change_password: false
+sonar_web_old_password: admin
+
+sonar_migrate_db: false
+
+sonar_set_jenkins_webhook: false
+sonar_jenkins_webhook_name: jenkins
+sonar_jenkins_webhook_url: https://jenkins.example.com/sonarqube-webhook/
+
+sonar_restore_profiles: false
+sonar_profile_list:
+  - files/example_profile.xml
+
 sonar_updatecenter_activate: true
 
-# HTTP proxy (default none)
-http_proxy_host: ""
-http_proxy_port: ""
-# HTTPS proxy (defaults are values of http.proxyHost and http.proxyPort)
-https_proxy_host: ""
-https_proxy_port: ""
+# See https://docs.sonarqube.org/latest/instance-administration/delegated-auth/#header-6 to get description
+# ldap:
+#    authenticator_downcase: false
+#    url: ldap://myserver.mycompany.com
+#    bind_dn: my_bind_dn
+#    bind_password: my_bind_password
+#    authentication: simple
+#    realm:
+#    contextFactoryClass: com.sun.jndi.ldap.LdapCtxFactory
+#    StartTLS: false
+#    followReferrals: true
+#    user_base_dn: ou=Users,dc=mycompany,dc=com
+#    user_request: (&(objectClass=inetOrgPerson)(uid={login}))
+#    user_real_name_attribute: cn
+#    user_email_attribute: mail
+#    group_base_dn: ou=Groups,dc=sonarsource,dc=com
+#    group_request: (&(objectClass=posixGroup)(memberUid={uid}))
+#    group_idAttribute: cn
 
-# NT domain name if NTLM proxy is used
-http_auth_ntlm_domain: ""
-
-# SOCKS proxy (default none)
-socks_proxy_host: ""
-socks_proxy_port: ""
-
-# Proxy authentication (used for HTTP, HTTPS and SOCKS proxies)
-http_proxy_user: ""
-http_proxy_password: ""
-
-#--------------------------------------------------------------------------------------------------
-# LOGGING
-
-# Level of logs. Supported values are INFO(default), DEBUG and TRACE (DEBUG + SQL + ES requests)
-sonar_log_level: "INFO"
-
-# Rolling policy of log files
-#    - based on time if value starts with "time:", for example by day ("time:yyyy-MM-dd")
-#      or by month ("time:yyyy-MM")
-#    - based on size if value starts with "size:", for example "size:10MB"
-#    - disabled if value is "none".  That needs logs to be managed by an external system like logrotate.
-sonar_log_rolling_policy: "time:yyyy-MM-dd"
-
-# Maximum number of files to keep if a rolling policy is enabled.
-#    - maximum value is 20 on size rolling policy
-#    - unlimited on time rolling policy. Set to zero to disable old file purging.
-sonar_log_max_files: 7
-
-# Access log is the list of all the HTTP requests received by server. If enabled, it is stored
-# in the file {sonar.path.logs}/access.log. This file follows the same rolling policy as for
-# sonar.log (see sonar.log.rollingPolicy and sonar.log.maxFiles).
-sonar_web_access_logs_enable: true
-
-# Format of access log. It is ignored if sonar.web.accessLogs.enable=false. Possible values are:
-#    - "common" is the Common Log Format, shortcut to: %h %l %u %user %date "%r" %s %b
-#    - "combined" is another format widely recognized, shortcut to: %h %l %u [%t] "%r" %s %b "%i{Referer}" "%i{User-Agent}"
-#    - else a custom pattern. See http://logback.qos.ch/manual/layouts.html#AccessPatternLayout.
-# If SonarQube is behind a reverse proxy, then the following value allows to display the correct remote IP address:
-sonar_web_access_logs_pattern: "%i{X-Forwarded-For} %l %u [%t] \"%r\" %s %b \"%i{Referer}\" \"%i{User-Agent}\""
-
-#--------------------------------------------------------------------------------------------------
-# LDAP
-# Ldap configuration for ldap auth plugin
-# see https://docs.sonarqube.org/latest/instance-administration/delegated-auth/ for more details and description of properties
-#
-# Example:
-# sonar_ldap:
-#     authenticator_downcase: false
-#     url: 'ldap://your_ldap_url'
-#     bind_dn: 'cn=sonaruser,o=example,o=com'
-#     bind_password: 'MyBindPassword'
-#     user_base_dn: 'o=users,o=example,o=com'
-#     authentication: simple
-#     realm: 'example.org'
-#     context_factory_class: com.sun.jndi.ldap.LdapCtxFactory
-#     start_tls: false
-#     follow_referrals: true
-#     user_base_dn: 'cn=users,dc=example,dc=org'
-#     user_request: '(&(objectClass=inetOrgPerson)(uid={login}))'
-#     user_real_name_attribute: 'cn'
-#     user_email_attribute: 'mail'
-#     group_base_dn: 'o=groups,o=example,o=com'
-#     group_request: '(&(objectClass=groupOfNames)(member={dn}))'
-#     group_id_attribute: 'sAMAccountName'
-#
-# default: undefined
-# sonar_ldap:
-
-#--------------------------------------------------------------------------------------------------
-# OTHERS
-
-# Delay in seconds between processing of notification queue. Default is 60 seconds.
-sonar_notifications_delay: 60
-
-
-#--------------------------------------------------------------------------------------------------
-# DEVELOPMENT - only for developers
-# The following properties MUST NOT be used in production environments.
-
-# Dev mode allows to reload web sources on changes and to restart server when new versions
-# of plugins are deployed.
-sonar_web_dev: false
-
-# Path to webapp sources for hot-reloading of Ruby on Rails, JS and CSS (only core,
-# plugins not supported).
-sonar_web_dev_sources: ""
-
-# Elasticsearch HTTP connector, for example for KOPF:
-# http://lmenezes.com/elasticsearch-kopf/?location=http://localhost:9010
-sonar_search_http_port: -1
+sonar_log_path: "{% if sonar_version is version(\"8.7.0.41497\", \">=\") %}\
+                   {{ sonar_installation }}/logs/sonar.{{ ansible_date_time.year }}{{ ansible_date_time.month }}{{ ansible_date_time.day }}.log\
+                 {% elif sonar_version is version(\"8.6.0.39681\", \">=\") %}\
+                   {{ sonar_installation }}/logs/sonar-{{ ansible_date_time.year }}{{ ansible_date_time.month }}{{ ansible_date_time.day }}.log\
+                 {% else %}\
+                   {{ sonar_installation }}/logs/sonar.log\
+                 {% endif %}"
