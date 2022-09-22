@@ -7,6 +7,10 @@
 # - name: install mysql on the db server
 #   ansible.builtin.import_playbook: ../static-assignments/nginx.yml
 
-- hosts: artifactory 
-- name: install mysql on the db server
-  import_playbook: ../static-assignments/artifactory.yml
+# - hosts: artifactory 
+# - name: install mysql on the db server
+#   import_playbook: ../static-assignments/artifactory.yml
+
+ - hosts: sonarqube 
+ - name: install mysql on the sonarqube server
+   import_playbook: ../static-assignments/sonarqube.yml

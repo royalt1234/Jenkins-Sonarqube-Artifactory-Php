@@ -1,0 +1,6 @@
+---
+- name: install dsonarqubeb on redhat server
+  hosts: sonarqube
+  roles:
+    - sonarqube
+  
