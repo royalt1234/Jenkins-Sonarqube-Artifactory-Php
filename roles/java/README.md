@@ -4,6 +4,11 @@
 
 Installs Java for RedHat/CentOS and Debian/Ubuntu linux servers.
 
+
+```
+ansible-galaxy install geerlingguy.java
+```
+
 ## Requirements
 
 None.
