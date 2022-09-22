@@ -1,0 +1,6 @@
+---
+- name: install java on sonarqube server
+  hosts: java
+  roles:
+    - java
+  
